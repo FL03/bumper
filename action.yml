@@ -1,0 +1,81 @@
+name: 'Bumper'
+description: >
+  Bump version strings across a repository with format-aware regex substitution.
+  Handles TOML (workspace.package + dep pins), Nix, JSON, Markdown, and generic
+  text files. Include/exclude sets accept comma-separated or YAML-list syntax.
+author: 'FL03'
+
+branding:
+  icon: 'arrow-up-circle'
+  color: 'orange'
+
+# ─── Inputs ────────────────────────────────────────────────────────────────────
+
+inputs:
+  from:
+    description: 'Current (old) version string — e.g. 1.2.3'
+    required: true
+
+  to:
+    description: 'Next (new) version string — e.g. 1.2.4'
+    required: true
+
+  includes:
+    description: >
+      Files to process. Accepts comma-separated values, YAML inline lists
+      [a, b, c], or multiline strings. Each entry is a glob pattern resolved
+      relative to the repository root (** is supported).
+      Exact filenames like `Cargo.toml` are also valid.
+    required: false
+    default: 'Cargo.toml,**/*.nix,README.md'
+
+  excludes:
+    description: >
+      Paths, directory names, or glob patterns to skip. Matched against each
+      path component as well as the full relative path. Defaults cover the
+      directories and lock files that must never be touched.
+    required: false
+    default: '.git,target,node_modules,.artifacts,*.lock,*-lock.*'
+
+  crate-prefix:
+    description: >
+      Comma-separated list of crate-name prefixes. Lines in *.toml files whose
+      content contains one of these prefixes will additionally have their
+      `version = "OLD"` dep-pin updated. Useful for monorepos where workspace
+      dependencies carry inline version constraints.
+      Example: `axiom` matches `axiom-core = { ..., version = "1.2.3" }`.
+    required: false
+    default: ''
+
+  dry-run:
+    description: >
+      Set to `true` to print what would change without writing any files.
+      Useful for debugging include/exclude patterns in CI.
+    required: false
+    default: 'false'
+
+# ─── Outputs ───────────────────────────────────────────────────────────────────
+
+outputs:
+  changed-files:
+    description: >
+      Newline-separated list of repository-relative paths that were modified
+      (empty string when dry-run is true or no changes were needed).
+    value: ${{ steps.bump.outputs.changed_files }}
+
+# ─── Implementation ────────────────────────────────────────────────────────────
+
+runs:
+  using: composite
+  steps:
+    - name: Bump version refs
+      id: bump
+      shell: bash
+      env:
+        BUMPER_FROM: ${{ inputs.from }}
+        BUMPER_TO: ${{ inputs.to }}
+        BUMPER_INCLUDES: ${{ inputs.includes }}
+        BUMPER_EXCLUDES: ${{ inputs.excludes }}
+        BUMPER_CRATE_PREFIX: ${{ inputs.crate-prefix }}
+        BUMPER_DRY_RUN: ${{ inputs.dry-run }}
+      run: python3 "${{ github.action_path }}/scripts/bump.py"
