@@ -37,13 +37,13 @@ inputs:
     required: false
     default: '.git,target,node_modules,.artifacts,*.lock,*-lock.*'
 
-  crate-prefix:
+  toml-dep-prefix:
     description: >
-      Comma-separated list of crate-name prefixes. Lines in *.toml files whose
+      Comma-separated list of name prefixes. Lines in *.toml files whose
       content contains one of these prefixes will additionally have their
       `version = "OLD"` dep-pin updated. Useful for monorepos where workspace
       dependencies carry inline version constraints.
-      Example: `axiom` matches `axiom-core = { ..., version = "1.2.3" }`.
+      Example: `mylib` matches `mylib-core = { ..., version = "1.2.3" }`.
     required: false
     default: ''
 
@@ -88,7 +88,7 @@ runs:
         BUMPER_TO: ${{ inputs.to }}
         BUMPER_INCLUDES: ${{ inputs.includes }}
         BUMPER_EXCLUDES: ${{ inputs.excludes }}
-        BUMPER_CRATE_PREFIX: ${{ inputs.crate-prefix }}
+        BUMPER_TOML_DEP_PREFIX: ${{ inputs.toml-dep-prefix }}
         BUMPER_DRY_RUN: ${{ inputs.dry-run }}
       run: python3 "${{ github.action_path }}/scripts/bump.py"
 

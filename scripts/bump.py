@@ -7,7 +7,7 @@ Reads configuration from environment variables set by the composite action:
   BUMPER_TO            new version string (e.g. 1.2.4)
   BUMPER_INCLUDES      files/globs to process  (CSV, newline, or [list])
   BUMPER_EXCLUDES      paths/globs to skip      (CSV, newline, or [list])
-  BUMPER_CRATE_PREFIX  comma-separated crate name prefixes for dep-pin bumping
+  BUMPER_TOML_DEP_PREFIX  comma-separated name prefixes for TOML dep-pin bumping
   BUMPER_DRY_RUN       'true' to skip writes
 
 Format-aware replacers
@@ -210,7 +210,7 @@ def main() -> None:
         "BUMPER_EXCLUDES",
         ".git,target,node_modules,.artifacts,*.lock,*-lock.*",
     )
-    prefix_raw = os.environ.get("BUMPER_CRATE_PREFIX", "")
+    prefix_raw = os.environ.get("BUMPER_TOML_DEP_PREFIX", "")
     dry_run = os.environ.get("BUMPER_DRY_RUN", "false").lower() == "true"
 
     if not old or not new:
@@ -234,7 +234,7 @@ def main() -> None:
     print(f"  includes : {', '.join(include_patterns)}")
     print(f"  excludes : {', '.join(exclude_patterns)}")
     if crate_prefixes:
-        print(f"  crate-prefix : {', '.join(crate_prefixes)}")
+        print(f"  toml-dep-prefix : {', '.join(crate_prefixes)}")
     print(f"  {len(files)} candidate file(s) after include/exclude filtering")
     if dry_run:
         print("  [dry-run mode — no files will be written]")
