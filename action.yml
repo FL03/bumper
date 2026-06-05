@@ -54,6 +54,18 @@ inputs:
     required: false
     default: 'false'
 
+  commit:
+    description: >
+      Set to `true` to stage and commit the modified files after bumping.
+      Requires the checkout step to have `persist-credentials: true` (the default).
+    required: false
+    default: 'false'
+
+  commit-message:
+    description: 'Commit message used when `commit` is `true`.'
+    required: false
+    default: 'chore: bump version to ${{ inputs.to }}'
+
 # ─── Outputs ───────────────────────────────────────────────────────────────────
 
 outputs:
@@ -79,3 +91,13 @@ runs:
         BUMPER_CRATE_PREFIX: ${{ inputs.crate-prefix }}
         BUMPER_DRY_RUN: ${{ inputs.dry-run }}
       run: python3 "${{ github.action_path }}/scripts/bump.py"
+
+    - name: Commit changed files
+      if: inputs.commit == 'true' && steps.bump.outputs.changed_files != ''
+      shell: bash
+      env:
+        CHANGED_FILES: ${{ steps.bump.outputs.changed_files }}
+        COMMIT_MSG: ${{ inputs.commit-message }}
+      run: |
+        echo "$CHANGED_FILES" | xargs git add
+        git commit -m "$COMMIT_MSG"

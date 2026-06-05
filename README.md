@@ -35,14 +35,8 @@ jobs:
           includes: 'Cargo.toml,**/*.nix,README.md'
           excludes: '.git,target,node_modules,.artifacts,*.lock,*-lock.*'
           crate-prefix: 'my-crate,my-other-crate'
+          commit: 'true'
           dry-run: 'false'
-
-      - name: Stage changed files
-        if: steps.bump.outputs.changed-files != ''
-        run: |
-          echo "${{ steps.bump.outputs.changed-files }}" | xargs git add
-          git commit -m "chore: bump version to 1.2.4"
-          git push
 ```
 
 ## Inputs
@@ -55,6 +49,8 @@ jobs:
 | `excludes` | no | `.git,target,node_modules,.artifacts,*.lock,*-lock.*` | Paths, directory names, or glob patterns to skip. Matched against each path component as well as the full relative path. |
 | `crate-prefix` | no | `` | Comma-separated list of crate-name prefixes. Lines in `*.toml` files whose content contains one of these prefixes will additionally have their `version = "OLD"` dep-pin updated. Useful for monorepos where workspace dependencies carry inline version constraints. Example: `axiom` matches `axiom-core = { ..., version = "1.2.3" }`. |
 | `dry-run` | no | `false` | Set to `true` to print what would change without writing any files. Useful for debugging include/exclude patterns in CI. |
+| `commit` | no | `false` | Set to `true` to stage and commit the modified files after bumping. Requires the checkout step to have `persist-credentials: true` (the default). |
+| `commit-message` | no | `chore: bump version to <to>` | Commit message used when `commit` is `true`. |
 
 ## Outputs
 
