@@ -1,0 +1,103 @@
+[package]
+name = "bumper-sdk"
+
+authors.workspace = true
+categories.workspace = true
+description.workspace = true
+edition.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[lib]
+name = "bumper"
+path = "src/lib.rs"
+
+[dependencies]
+# parsing
+nom = { default-features = false, optional = true, features = [], version = "8" }
+num-traits = { default-features = false, version = "0.2" }
+# serialization
+serde = { optional = true, features = [], version = "1" }
+serde_derive = { optional = true, features = [], version = "1" }
+# macros & utilities
+strum = { features = [], version = "0.28" }
+thiserror = { default-features = false, version = "2" }
+
+[features]
+default = [
+  "std",
+]
+
+full = ["default"]
+
+# ********* [FF] Flags *********
+parse = ["std", "nom"]
+
+# ********* [FF] Standard Library *********
+alloc = [
+  "serde?/alloc",
+]
+
+std = [
+  "alloc",
+  "num-traits/std",
+  "serde?/std",
+  "strum/std",
+  "thiserror/std",
+]
+
+# ********* [FF] Deps *********
+
+nom = ["dep:nom"]
+
+serde = [
+  "dep:serde",
+  "dep:serde_derive",
+  "serde?/derive",
+]
+
+# ********* Profiles *********
+[profile.dev]
+codegen-units = 256
+debug = true
+debug-assertions = true
+incremental = true
+lto = false
+opt-level = 1
+overflow-checks = true
+rpath = false
+strip = false
+
+[profile.release]
+codegen-units = 16
+debug = false
+debug-assertions = false
+incremental = false
+lto = "fat"
+opt-level = 2
+overflow-checks = false
+panic = "unwind"
+rpath = false
+strip = true
+
+[profile.native-dev]
+inherits = "dev"
+
+[profile.wasi-dev]
+inherits = "dev"
+lto = "thin"
+
+[profile.wasm-dev]
+inherits = "dev"
+opt-level = 1
+strip = true
+
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"
+strip = true

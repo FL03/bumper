@@ -4,7 +4,65 @@
     Contrib: @FL03
 */
 use crate::error::VersionParseError;
-use crate::types::{SemVer, SuffixedSemVer};
+use crate::types::{parse_semver, SemVer, SuffixedSemVer};
+
+fn parse_version<T>(input: &str) -> Result<Version<T>, VersionParseError>
+where
+    T: core::str::FromStr,
+{
+    let (version, remaining) = parse_semver::<T>(input).map_err(VersionParseError::SemVer)?;
+
+    if remaining.is_empty() {
+        return Ok(Version::SemVer(version));
+    }
+
+    let (separator, suffix) = parse_suffix(remaining)?;
+
+    Ok(Version::Suffixed(SuffixedSemVer {
+        version,
+        separator,
+        suffix,
+    }))
+}
+
+
+fn parse_suffix(input: &str) -> Result<(String, String), VersionParseError> {
+    if input.is_empty() {
+        return Err(VersionParseError::InvalidSuffix);
+    }
+
+    let separator = match input.as_bytes()[0] {
+        b'-' => "-",
+        b'+' => "+",
+        _ => return Err(VersionParseError::InvalidFormat),
+    };
+
+    let suffix = &input[1..];
+
+    if suffix.is_empty() {
+        return Err(VersionParseError::InvalidSuffix);
+    }
+
+    // Whitespace is never valid inside a suffix.
+    if suffix.chars().any(char::is_whitespace) {
+        return Err(VersionParseError::InvalidSuffix);
+    }
+
+    // Do not allow another separator immediately after the separator.
+    //
+    // This prevents:
+    //
+    // 6.5.9--
+    // 6.5.9-+
+    // 6.5.9-+dev
+    //
+    if suffix.starts_with('-') || suffix.starts_with('+') {
+        return Err(VersionParseError::InvalidSuffix);
+    }
+
+    Ok((separator.to_owned(), suffix.to_owned()))
+}
+
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[cfg_attr(
@@ -58,7 +116,7 @@ where
     type Err = VersionParseError;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
-        crate::utils::parse_version::<T>(input)
+        parse_version::<T>(input)
     }
 }
 

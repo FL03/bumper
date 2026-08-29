@@ -1,0 +1,25 @@
+[package]
+name = "bumper-cli"
+
+authors.workspace = true
+categories.workspace = true
+description.workspace = true
+edition.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[[bin]]
+name = "bumper"
+path = "src/main.rs"
+
+[dependencies]
+bumper-sdk = { workspace = true }
+# app
+clap = { features = ["derive", "env"], workspace = true }
+# error
+anyhow = { workspace = true }

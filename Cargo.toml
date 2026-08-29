@@ -1,59 +1,39 @@
-[package]
+[workspace]
+default-members = ["crates/sdk"]
+members = ["crates/*"]
+resolver = "3"
+
+[workspace.package]
 authors = ["Puzzled <support@pzzld.org>"]
 categories = ["developer-tools"]
+description = "A semver toolkit for Rust"
 edition = "2024"
 homepage = "https://github.com/FL03/bumper"
 keywords = ["versioning", "semver"]
 license = "Apache-2.0"
-name = "bumper"
 readme = "README.md"
 repository = "https://github.com/FL03/bumper.git"
 rust-version = "1.97.0"
-version = "0.1.0"
+version = "0.0.1"
 
-[dependencies]
+[workspace.dependencies]
+bumper-cli = { path = "crates/cli", version = "0.0.1" }
+bumper-sdk = { path = "crates/sdk", version = "0.0.1" }
+# cli
+clap = { version = "4" }
 # parsing
-nom = { default-features = false, optional = true, features = [], version = "8" }
+nom = { default-features = false, version = "8" }
+# mathematics
 num-traits = { default-features = false, version = "0.2" }
 # serialization
-serde = { optional = true, features = [], version = "1" }
-serde_derive = { optional = true, features = [], version = "1" }
+serde = { default-features = false, features = ["derive"], version = "1" }
+serde_derive = { default-features = false, version = "1" }
+serde_json = { default-features = false, version = "1" }
 # macros & utilities
-strum = { features = [], version = "0.28" }
+strum = { default-features = false, features = ["derive"], version = "0.28" }
+# errors
+anyhow = { default-features = false, version = "1" }
 thiserror = { default-features = false, version = "2" }
-
-[features]
-default = [
-  "std",
-]
-
-full = ["default"]
-
-# ********* [FF] Flags *********
-parse = ["std", "nom"]
-
-# ********* [FF] Standard Library *********
-alloc = [
-  "serde?/alloc",
-]
-
-std = [
-  "alloc",
-  "num-traits/std",
-  "serde?/std",
-  "strum/std",
-  "thiserror/std",
-]
-
-# ********* [FF] Deps *********
-
-nom = ["dep:nom"]
-
-serde = [
-  "dep:serde",
-  "dep:serde_derive",
-  "serde?/derive",
-]
 
 # ********* Profiles *********
 [profile.dev]

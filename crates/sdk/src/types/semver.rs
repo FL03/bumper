@@ -6,6 +6,84 @@
 use crate::error::SemVerParseError;
 use core::ops::{Add, Rem, Sub};
 
+fn parse_component<T>(input: &str) -> Result<(T, &str), SemVerParseError>
+where
+    T: core::str::FromStr,
+{
+    if input.is_empty() {
+        return Err(SemVerParseError::InvalidFormat);
+    }
+
+    let bytes = input.as_bytes();
+
+    // ------------------------------------------------------------------------
+    // First character
+    // ------------------------------------------------------------------------
+
+    if !bytes[0].is_ascii_digit() {
+        return Err(SemVerParseError::InvalidComponent);
+    }
+
+    // Leading zero is only legal when the component is exactly "0".
+    if bytes[0] == b'0' {
+        if bytes.get(1).is_some_and(u8::is_ascii_digit) {
+            return Err(SemVerParseError::InvalidComponent);
+        }
+
+        let value = "0"
+            .parse::<T>()
+            .map_err(|_| SemVerParseError::ComponentOverflow)?;
+
+        return Ok((value, &input[1..]));
+    }
+
+    // ------------------------------------------------------------------------
+    // Consume the complete decimal component.
+    // ------------------------------------------------------------------------
+
+    let mut end = 1;
+
+    while end < bytes.len() && bytes[end].is_ascii_digit() {
+        end += 1;
+    }
+
+    let component = &input[..end];
+
+    let value = component
+        .parse::<T>()
+        .map_err(|_| SemVerParseError::ComponentOverflow)?;
+
+    Ok((value, &input[end..]))
+}
+
+pub(crate) fn parse_semver<T>(input: &str) -> Result<(SemVer<T>, &str), SemVerParseError>
+where
+    T: core::str::FromStr,
+{
+    let (major, input) = parse_component::<T>(input)?;
+
+    let input = input
+        .strip_prefix('.')
+        .ok_or(SemVerParseError::InvalidFormat)?;
+
+    let (minor, input) = parse_component::<T>(input)?;
+
+    let input = input
+        .strip_prefix('.')
+        .ok_or(SemVerParseError::InvalidFormat)?;
+
+    let (patch, input) = parse_component::<T>(input)?;
+
+    Ok((
+        SemVer {
+            major,
+            minor,
+            patch,
+        },
+        input,
+    ))
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[cfg_attr(
     feature = "serde",
@@ -19,12 +97,36 @@ pub struct SemVer<T = u16> {
     pub(crate) patch: T,
 }
 
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Deserialize, serde::Serialize),
+    serde(rename_all = "snake_case")
+)]
+#[repr(C)]
+pub struct SuffixedSemVer<T = u16> {
+    pub(crate) version: SemVer<T>,
+    pub(crate) separator: String,
+    pub(crate) suffix: String,
+}
+
+/* -------- impls::<SemVer>:: -------- */
+
 impl<T> SemVer<T> {
     /// Construct 0.0.0.
     ///
-    /// IMPORTANT:
-    /// The Zero bound exists ONLY on this method.
     pub fn new() -> Self
+    where
+        T: Default,
+    {
+        Self {
+            major: T::default(),
+            minor: T::default(),
+            patch: T::default(),
+        }
+    }
+
+    pub fn zero() -> Self
     where
         T: num_traits::Zero,
     {
@@ -107,6 +209,15 @@ where
     }
 }
 
+impl<T> Default for SemVer<T>
+where
+    T: num_traits::Zero,
+{
+    fn default() -> Self {
+        Self::zero()
+    }
+}
+
 impl<T> core::fmt::Display for SemVer<T>
 where
     T: core::fmt::Display,
@@ -116,24 +227,7 @@ where
     }
 }
 
-//
-// ============================================================================
-// SuffixedSemVer
-// ============================================================================
-//
-
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Deserialize, serde::Serialize),
-    serde(rename_all = "snake_case")
-)]
-#[repr(C)]
-pub struct SuffixedSemVer<T = u16> {
-    pub(crate) version: SemVer<T>,
-    pub(crate) separator: String,
-    pub(crate) suffix: String,
-}
+/* -------- SuffixedSemVer -------- */
 
 impl<T> SuffixedSemVer<T> {
     pub fn new(
@@ -164,16 +258,6 @@ impl<T> SuffixedSemVer<T> {
         (self.version, self.separator, self.suffix)
     }
 }
-
-impl<T> Default for SemVer<T>
-where
-    T: num_traits::Zero,
-{
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl<T> core::fmt::Display for SuffixedSemVer<T>
 where
     T: core::fmt::Display,
@@ -189,7 +273,7 @@ where
     type Err = SemVerParseError;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
-        let (version, remaining) = crate::utils::parse_semver::<T>(input)?;
+        let (version, remaining) = parse_semver::<T>(input)?;
 
         if !remaining.is_empty() {
             return Err(SemVerParseError::TrailingInput);

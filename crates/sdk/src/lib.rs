@@ -33,16 +33,6 @@ pub mod types {
     }
 }
 
-pub mod utils {
-    #[doc(inline)]
-    pub(crate) use self::prelude::*;
-
-    mod parse;
-
-    mod prelude {
-        pub(crate) use super::parse::*;
-    }
-}
 // re-export
 #[doc(inline)]
 pub use self::{error::*, types::*};
