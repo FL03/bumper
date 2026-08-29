@@ -4,24 +4,29 @@
     Contrib: @FL03
 */
 
-#[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
-pub enum SemVerParseError {
-    #[error("invalid semantic version; expected MAJOR.MINOR.PATCH")]
-    InvalidFormat,
+/// a type alias for a [`Result`](core::result::Result) equipped to leverage the crate error type.
+pub type Result<T> = core::result::Result<T, Error>;
+
+#[derive(Debug, thiserror::Error)]
+pub enum ParseError {
     #[error("invalid numeric version component")]
     InvalidComponent,
+    #[error("invalid semantic version; expected MAJOR.MINOR.PATCH with an optional suffix.")]
+    InvalidFormat,
     #[error("version component does not fit target integer type")]
     ComponentOverflow,
     #[error("unexpected trailing version input")]
     TrailingInput,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
-pub enum VersionParseError {
-    #[error(transparent)]
-    SemVer(#[from] SemVerParseError),
     #[error("invalid suffix")]
     InvalidSuffix,
-    #[error("invalid format")]
-    InvalidFormat,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    // custom
+    #[error(transparent)]
+    ParseError(#[from] ParseError),
+    // external errors
+    #[error(transparent)]
+    IOError(std::io::Error),
 }

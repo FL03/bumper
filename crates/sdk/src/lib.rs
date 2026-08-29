@@ -38,10 +38,13 @@ pub mod types {
 }
 
 // re-export
+#[cfg(feature = "parse")]
+pub use self::parse::VersionParser;
 #[doc(inline)]
 pub use self::{error::*, types::*};
 // prelude
 pub mod prelude {
-    // #[cfg(feature = "parse")]
-    // pub use crate::parse::*;
+    #[cfg(feature = "parse")]
+    pub use crate::parse::*;
+    pub use crate::types::*;
 }

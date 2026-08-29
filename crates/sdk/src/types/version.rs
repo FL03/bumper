@@ -3,14 +3,14 @@
     Created At: 2026.08.29:11:35:04
     Contrib: @FL03
 */
-use crate::error::VersionParseError;
-use crate::types::{parse_semver, SemVer, SuffixedSemVer};
+use crate::error::{Error, ParseError};
+use crate::types::{SemVer, SuffixedSemVer, parse_semver};
 
-fn parse_version<T>(input: &str) -> Result<Version<T>, VersionParseError>
+fn parse_version<T>(input: &str) -> Result<Version<T>, Error>
 where
     T: core::str::FromStr,
 {
-    let (version, remaining) = parse_semver::<T>(input).map_err(VersionParseError::SemVer)?;
+    let (version, remaining) = parse_semver::<T>(input).map_err(Error::ParseError)?;
 
     if remaining.is_empty() {
         return Ok(Version::SemVer(version));
@@ -25,27 +25,26 @@ where
     }))
 }
 
-
-fn parse_suffix(input: &str) -> Result<(String, String), VersionParseError> {
+fn parse_suffix(input: &str) -> Result<(String, String), ParseError> {
     if input.is_empty() {
-        return Err(VersionParseError::InvalidSuffix);
+        return Err(ParseError::InvalidSuffix);
     }
 
     let separator = match input.as_bytes()[0] {
         b'-' => "-",
         b'+' => "+",
-        _ => return Err(VersionParseError::InvalidFormat),
+        _ => return Err(ParseError::InvalidFormat),
     };
 
     let suffix = &input[1..];
 
     if suffix.is_empty() {
-        return Err(VersionParseError::InvalidSuffix);
+        return Err(ParseError::InvalidSuffix);
     }
 
     // Whitespace is never valid inside a suffix.
     if suffix.chars().any(char::is_whitespace) {
-        return Err(VersionParseError::InvalidSuffix);
+        return Err(ParseError::InvalidSuffix);
     }
 
     // Do not allow another separator immediately after the separator.
@@ -57,12 +56,11 @@ fn parse_suffix(input: &str) -> Result<(String, String), VersionParseError> {
     // 6.5.9-+dev
     //
     if suffix.starts_with('-') || suffix.starts_with('+') {
-        return Err(VersionParseError::InvalidSuffix);
+        return Err(ParseError::InvalidSuffix);
     }
 
     Ok((separator.to_owned(), suffix.to_owned()))
 }
-
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[cfg_attr(
@@ -113,7 +111,7 @@ impl<T> core::str::FromStr for Version<T>
 where
     T: core::str::FromStr,
 {
-    type Err = VersionParseError;
+    type Err = Error;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         parse_version::<T>(input)

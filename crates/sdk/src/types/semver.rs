@@ -3,43 +3,34 @@
     Created At: 2026.08.29:11:28:56
     Contrib: @FL03
 */
-use crate::error::SemVerParseError;
+use crate::error::ParseError;
 use core::ops::{Add, Rem, Sub};
 
-fn parse_component<T>(input: &str) -> Result<(T, &str), SemVerParseError>
+fn parse_component<T>(input: &str) -> Result<(T, &str), ParseError>
 where
     T: core::str::FromStr,
 {
     if input.is_empty() {
-        return Err(SemVerParseError::InvalidFormat);
+        return Err(ParseError::InvalidFormat);
     }
 
     let bytes = input.as_bytes();
 
-    // ------------------------------------------------------------------------
-    // First character
-    // ------------------------------------------------------------------------
-
     if !bytes[0].is_ascii_digit() {
-        return Err(SemVerParseError::InvalidComponent);
+        return Err(ParseError::InvalidComponent);
     }
-
     // Leading zero is only legal when the component is exactly "0".
     if bytes[0] == b'0' {
         if bytes.get(1).is_some_and(u8::is_ascii_digit) {
-            return Err(SemVerParseError::InvalidComponent);
+            return Err(ParseError::InvalidComponent);
         }
 
         let value = "0"
             .parse::<T>()
-            .map_err(|_| SemVerParseError::ComponentOverflow)?;
+            .map_err(|_| ParseError::ComponentOverflow)?;
 
         return Ok((value, &input[1..]));
     }
-
-    // ------------------------------------------------------------------------
-    // Consume the complete decimal component.
-    // ------------------------------------------------------------------------
 
     let mut end = 1;
 
@@ -51,26 +42,22 @@ where
 
     let value = component
         .parse::<T>()
-        .map_err(|_| SemVerParseError::ComponentOverflow)?;
+        .map_err(|_| ParseError::ComponentOverflow)?;
 
     Ok((value, &input[end..]))
 }
 
-pub(crate) fn parse_semver<T>(input: &str) -> Result<(SemVer<T>, &str), SemVerParseError>
+pub(crate) fn parse_semver<T>(input: &str) -> Result<(SemVer<T>, &str), ParseError>
 where
     T: core::str::FromStr,
 {
     let (major, input) = parse_component::<T>(input)?;
 
-    let input = input
-        .strip_prefix('.')
-        .ok_or(SemVerParseError::InvalidFormat)?;
+    let input = input.strip_prefix('.').ok_or(ParseError::InvalidFormat)?;
 
     let (minor, input) = parse_component::<T>(input)?;
 
-    let input = input
-        .strip_prefix('.')
-        .ok_or(SemVerParseError::InvalidFormat)?;
+    let input = input.strip_prefix('.').ok_or(ParseError::InvalidFormat)?;
 
     let (patch, input) = parse_component::<T>(input)?;
 
@@ -270,13 +257,13 @@ impl<T> core::str::FromStr for SemVer<T>
 where
     T: core::str::FromStr,
 {
-    type Err = SemVerParseError;
+    type Err = ParseError;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         let (version, remaining) = parse_semver::<T>(input)?;
 
         if !remaining.is_empty() {
-            return Err(SemVerParseError::TrailingInput);
+            return Err(ParseError::TrailingInput);
         }
 
         Ok(version)
@@ -367,21 +354,21 @@ mod tests {
     fn detects_integer_overflow() {
         let result = "65536.5.9".parse::<SemVer<u16>>();
 
-        assert!(matches!(result, Err(SemVerParseError::ComponentOverflow)));
+        assert!(matches!(result, Err(ParseError::ComponentOverflow)));
     }
 
     #[test]
     fn detects_minor_integer_overflow() {
         let result = "1.65536.9".parse::<SemVer<u16>>();
 
-        assert!(matches!(result, Err(SemVerParseError::ComponentOverflow)));
+        assert!(matches!(result, Err(ParseError::ComponentOverflow)));
     }
 
     #[test]
     fn detects_patch_integer_overflow() {
         let result = "1.2.65536".parse::<SemVer<u16>>();
 
-        assert!(matches!(result, Err(SemVerParseError::ComponentOverflow)));
+        assert!(matches!(result, Err(ParseError::ComponentOverflow)));
     }
 
     #[test]
