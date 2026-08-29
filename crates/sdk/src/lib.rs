@@ -3,7 +3,9 @@
     Created At: 2026.08.29:11:29:55
     Contrib: @FL03
 */
-// external crates
+//! Welcome to `bumper`, a semver parser enabling programmatic increments and routine versioning
+//! strategies.
+//!
 #![allow(
     async_fn_in_trait,
     non_snake_case,
@@ -14,9 +16,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 // compile-time checks
 #[cfg(not(any(feature = "std", feature = "alloc")))]
-compile_error! { "Either the `std` or `alloc` feature must be enabled." }
+compile_error! { "The `bumper` crate requires that either the `std` or `alloc` feature be enabled to compile." }
+// external crates
 #[cfg(feature = "alloc")]
 extern crate alloc;
+
 // modules
 pub mod error;
 #[cfg(feature = "parse")]
