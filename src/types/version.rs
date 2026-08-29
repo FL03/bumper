@@ -7,6 +7,12 @@ use crate::error::VersionParseError;
 use crate::types::{SemVer, SuffixedSemVer};
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Deserialize, serde::Serialize),
+    serde(rename_all = "snake_case")
+)]
+#[repr(C)]
 pub enum Version<T = u16> {
     SemVer(SemVer<T>),
     Suffixed(SuffixedSemVer<T>),
@@ -52,6 +58,84 @@ where
     type Err = VersionParseError;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
-        crate::parse::parse_version::<T>(input)
+        crate::utils::parse_version::<T>(input)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_dev_suffix() {
+        let version: Version = "6.5.9-dev".parse().unwrap();
+
+        assert!(version.is_suffixed());
+        assert_eq!(version.to_string(), "6.5.9-dev");
+    }
+
+    #[test]
+    fn parses_rc_suffix() {
+        let version: Version = "6.5.9-rc".parse().unwrap();
+
+        assert_eq!(version.to_string(), "6.5.9-rc");
+    }
+
+    #[test]
+    fn parses_build_suffix() {
+        let version: Version = "6.5.9+build".parse().unwrap();
+
+        assert_eq!(version.to_string(), "6.5.9+build");
+    }
+
+    #[test]
+    fn parses_hyphenated_suffix() {
+        let version: Version = "6.5.9-nightly.2026".parse().unwrap();
+
+        assert_eq!(version.to_string(), "6.5.9-nightly.2026");
+    }
+
+    #[test]
+    fn plain_semver_becomes_plain_variant() {
+        let version: Version = "6.5.9".parse().unwrap();
+
+        assert!(matches!(version, Version::SemVer(_)));
+    }
+
+    #[test]
+    fn suffixed_version_becomes_suffixed_variant() {
+        let version: Version = "6.5.9-dev".parse().unwrap();
+
+        assert!(matches!(version, Version::Suffixed(_)));
+    }
+
+    #[test]
+    fn rejects_empty_suffix() {
+        assert!("6.5.9-".parse::<Version>().is_err());
+        assert!("6.5.9+".parse::<Version>().is_err());
+    }
+
+    #[test]
+    fn rejects_whitespace_suffix() {
+        assert!("6.5.9-dev foo".parse::<Version>().is_err());
+    }
+
+    #[test]
+    fn rejects_double_separator_suffix() {
+        assert!("6.5.9--dev".parse::<Version>().is_err());
+        assert!("6.5.9-+dev".parse::<Version>().is_err());
+    }
+
+    #[test]
+    fn preserves_separator() {
+        let version: Version = "6.5.9+build".parse().unwrap();
+
+        match version {
+            Version::Suffixed(version) => {
+                assert_eq!(version.separator(), "+");
+                assert_eq!(version.suffix(), "build");
+            }
+            _ => panic!("expected suffixed version"),
+        }
     }
 }

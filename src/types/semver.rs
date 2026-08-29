@@ -7,6 +7,12 @@ use crate::error::SemVerParseError;
 use core::ops::{Add, Rem, Sub};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Deserialize, serde::Serialize),
+    serde(rename_all = "snake_case")
+)]
+#[repr(C)]
 pub struct SemVer<T = u16> {
     pub(crate) major: T,
     pub(crate) minor: T,
@@ -117,6 +123,12 @@ where
 //
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Deserialize, serde::Serialize),
+    serde(rename_all = "snake_case")
+)]
+#[repr(C)]
 pub struct SuffixedSemVer<T = u16> {
     pub(crate) version: SemVer<T>,
     pub(crate) separator: String,
@@ -153,6 +165,15 @@ impl<T> SuffixedSemVer<T> {
     }
 }
 
+impl<T> Default for SemVer<T>
+where
+    T: num_traits::Zero,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> core::fmt::Display for SuffixedSemVer<T>
 where
     T: core::fmt::Display,
@@ -168,12 +189,156 @@ where
     type Err = SemVerParseError;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
-        let (version, remaining) = crate::parse::parse_semver::<T>(input)?;
+        let (version, remaining) = crate::utils::parse_semver::<T>(input)?;
 
         if !remaining.is_empty() {
             return Err(SemVerParseError::TrailingInput);
         }
 
         Ok(version)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_basic_semver() {
+        let version: SemVer = "6.5.9".parse().unwrap();
+
+        assert_eq!(*version.major(), 6);
+        assert_eq!(*version.minor(), 5);
+        assert_eq!(*version.patch(), 9);
+    }
+
+    #[test]
+    fn formats_basic_semver() {
+        let version: SemVer = "6.5.9".parse().unwrap();
+
+        assert_eq!(version.to_string(), "6.5.9");
+    }
+
+    #[test]
+    fn rejects_v_prefix() {
+        assert!("v6.5.9".parse::<SemVer>().is_err());
+    }
+
+    #[test]
+    fn rejects_missing_patch() {
+        assert!("6.5".parse::<SemVer>().is_err());
+    }
+
+    #[test]
+    fn rejects_missing_minor() {
+        assert!("6.9".parse::<SemVer>().is_err());
+    }
+
+    #[test]
+    fn rejects_leading_zero_major() {
+        assert!("06.5.9".parse::<SemVer>().is_err());
+    }
+
+    #[test]
+    fn rejects_leading_zero_minor() {
+        assert!("6.05.9".parse::<SemVer>().is_err());
+    }
+
+    #[test]
+    fn rejects_leading_zero_patch() {
+        assert!("6.5.09".parse::<SemVer>().is_err());
+    }
+
+    #[test]
+    fn rejects_invalid_middle_component() {
+        assert!("6.x.9".parse::<SemVer>().is_err());
+    }
+
+    #[test]
+    fn accepts_zero_components() {
+        let version: SemVer = "0.0.0".parse().unwrap();
+
+        assert_eq!(version.to_string(), "0.0.0");
+    }
+
+    #[test]
+    fn accepts_single_digit_components() {
+        let version: SemVer = "6.5.9".parse().unwrap();
+
+        assert_eq!(*version.major(), 6);
+        assert_eq!(*version.minor(), 5);
+        assert_eq!(*version.patch(), 9);
+    }
+
+    #[test]
+    fn accepts_large_components() {
+        let version: SemVer<u64> = "65535.65535.65535".parse().unwrap();
+
+        assert_eq!(*version.major(), 65535);
+        assert_eq!(*version.minor(), 65535);
+        assert_eq!(*version.patch(), 65535);
+    }
+
+    #[test]
+    fn detects_integer_overflow() {
+        let result = "65536.5.9".parse::<SemVer<u16>>();
+
+        assert!(matches!(result, Err(SemVerParseError::ComponentOverflow)));
+    }
+
+    #[test]
+    fn detects_minor_integer_overflow() {
+        let result = "1.65536.9".parse::<SemVer<u16>>();
+
+        assert!(matches!(result, Err(SemVerParseError::ComponentOverflow)));
+    }
+
+    #[test]
+    fn detects_patch_integer_overflow() {
+        let result = "1.2.65536".parse::<SemVer<u16>>();
+
+        assert!(matches!(result, Err(SemVerParseError::ComponentOverflow)));
+    }
+
+    #[test]
+    fn new_is_zero() {
+        let version = SemVer::<u16>::new();
+
+        assert_eq!(version.to_string(), "0.0.0");
+    }
+
+    #[test]
+    fn successor_increments_patch() {
+        let version: SemVer = "6.5.8".parse().unwrap();
+
+        assert_eq!(version.successor().to_string(), "6.5.9");
+    }
+
+    #[test]
+    fn successor_rolls_minor() {
+        let version: SemVer = "6.5.9".parse().unwrap();
+
+        assert_eq!(version.successor().to_string(), "6.6.0");
+    }
+
+    #[test]
+    fn successor_rolls_major() {
+        let version: SemVer = "6.9.9".parse().unwrap();
+
+        assert_eq!(version.successor().to_string(), "7.0.0");
+    }
+
+    #[test]
+    fn generic_semver_works_with_u32() {
+        let version: SemVer<u32> = "4294967295.9.9".parse().unwrap();
+
+        assert_eq!(*version.major(), u32::MAX);
+    }
+
+    #[test]
+    fn generic_semver_works_with_u64() {
+        let version: SemVer<u64> = "18446744073709551615.9.9".parse().unwrap();
+
+        assert_eq!(*version.major(), u64::MAX);
     }
 }
