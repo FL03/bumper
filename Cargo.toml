@@ -19,6 +19,8 @@ version = "0.0.1"
 [workspace.dependencies]
 bumper-cli = { path = "crates/cli", version = "0.0.1" }
 bumper-sdk = { path = "crates/sdk", version = "0.0.1" }
+# benchmarks
+criterion = { version = "0.8" }
 # cli
 clap = { version = "4" }
 # parsing

@@ -4,6 +4,8 @@
     Contrib: @FL03
 */
 use crate::error::ParseError;
+#[cfg(feature = "alloc")]
+use alloc::string::{String, ToString};
 use core::ops::{Add, Rem, Sub};
 
 fn parse_component<T>(input: &str) -> Result<(T, &str), ParseError>
@@ -100,66 +102,85 @@ pub struct SuffixedSemVer<T = u16> {
 /* -------- impls::<SemVer>:: -------- */
 
 impl<T> SemVer<T> {
-    /// Construct 0.0.0.
-    ///
-    pub fn new() -> Self
-    where
-        T: Default,
-    {
-        Self {
-            major: T::default(),
-            minor: T::default(),
-            patch: T::default(),
-        }
-    }
-
-    pub fn zero() -> Self
-    where
-        T: num_traits::Zero,
-    {
-        Self {
-            major: T::zero(),
-            minor: T::zero(),
-            patch: T::zero(),
-        }
-    }
-
-    pub const fn from_parts(major: T, minor: T, patch: T) -> Self {
+    pub const fn new(major: T, minor: T, patch: T) -> Self {
         Self {
             major,
             minor,
             patch,
         }
     }
+    /// initialize a new [SemVer] instance from a given tuple assuming a composition of
+    /// `(major, minor, patch)`.
+    pub fn from_tuple((major, minor, patch): (T, T, T)) -> Self {
+        Self::new(major, minor, patch)
+    }
+    /// initializes a new instance whose components are generated as outputs of the given
+    /// function.
+    pub fn init<F>(mut func: F) -> Self
+    where
+        F: FnMut() -> T,
+    {
+        Self {
+            major: func(),
+            minor: func(),
+            patch: func(),
+        }
+    }
 
-    pub fn major(&self) -> &T {
+    pub fn one() -> Self
+    where
+        T: num_traits::One,
+    {
+        Self::init(<T>::one)
+    }
+
+    pub fn zero() -> Self
+    where
+        T: num_traits::Zero,
+    {
+        Self::init(<T>::zero)
+    }
+    /// applies an unary operator over the current instance to produce another instance of
+    /// some type `U`. Differs from a `map` application as the function is aware of the
+    /// structure not just the individual elements.
+    pub fn apply<F, U>(self, func: F) -> SemVer<U>
+    where
+        F: FnOnce(SemVer<T>) -> SemVer<U>,
+    {
+        func(self)
+    }
+    /// returns an owned reference to the major of the semver
+    pub const fn major(&self) -> &T {
         &self.major
     }
-
-    pub fn minor(&self) -> &T {
+    /// returns an owned reference to the minor of the semver
+    pub const fn minor(&self) -> &T {
         &self.minor
     }
-
-    pub fn patch(&self) -> &T {
+    /// returns an owned reference to the patch of the semver
+    pub const fn patch(&self) -> &T {
         &self.patch
     }
-
-    pub fn into_parts(self) -> (T, T, T) {
+    /// returns the semver as a 3-tuple consisting of owned references to individual
+    /// components; follows a canonical expectation of `(major, minor, patch)`.
+    pub const fn as_tuple(&self) -> (&T, &T, &T) {
+        (self.major(), self.minor(), self.patch())
+    }
+    /// consumes the current instance to return a 3-tuple representation `(major, minor, patch)`
+    pub fn into_tuple(self) -> (T, T, T) {
         (self.major, self.minor, self.patch)
     }
-}
 
-impl<T> SemVer<T>
-where
-    T: Clone
-        + PartialEq
-        + PartialOrd
-        + num_traits::One
-        + Add<Output = T>
-        + Sub<Output = T>
-        + Rem<Output = T>,
-{
-    pub fn successor(&self) -> Self {
+    pub fn successor(&self) -> Self
+    where
+        T: Clone
+            + PartialEq
+            + PartialOrd
+            + num_traits::One
+            + Add<Output = T>
+            + Sub<Output = T>
+            + Rem<Output = T>,
+    {
         let one = T::one();
 
         let nine = one.clone()
@@ -198,10 +219,14 @@ where
 
 impl<T> Default for SemVer<T>
 where
-    T: num_traits::Zero,
+    T: Default,
 {
     fn default() -> Self {
-        Self::zero()
+        Self {
+            major: T::default(),
+            minor: T::default(),
+            patch: T::default(),
+        }
     }
 }
 
@@ -217,26 +242,22 @@ where
 /* -------- SuffixedSemVer -------- */
 
 impl<T> SuffixedSemVer<T> {
-    pub fn new(
-        version: SemVer<T>,
-        separator: impl Into<String>,
-        suffix: impl Into<String>,
-    ) -> Self {
+    pub fn new(version: SemVer<T>, separator: impl ToString, suffix: impl ToString) -> Self {
         Self {
             version,
-            separator: separator.into(),
-            suffix: suffix.into(),
+            separator: separator.to_string(),
+            suffix: suffix.to_string(),
         }
     }
-
+    /// returns
     pub fn version(&self) -> &SemVer<T> {
         &self.version
     }
-
+    /// returns a reference to the suffix separator
     pub fn separator(&self) -> &str {
         &self.separator
     }
-
+    /// returns a reference to the semver suffix
     pub fn suffix(&self) -> &str {
         &self.suffix
     }
@@ -373,7 +394,7 @@ mod tests {
 
     #[test]
     fn new_is_zero() {
-        let version = SemVer::<u16>::new();
+        let version = SemVer::<u16>::zero();
 
         assert_eq!(version.to_string(), "0.0.0");
     }
