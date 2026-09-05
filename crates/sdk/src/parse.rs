@@ -4,21 +4,20 @@
     Contrib: @FL03
 */
 #![cfg(feature = "parse")]
+use crate::Version;
 
-pub struct VersionParser<'a, T> {
-    pub(crate) _lt: core::marker::PhantomData<&'a T>,
+pub struct VersionParser<T> {
+    pub(crate) _semver: core::marker::PhantomData<Version<T>>,
 }
 
-// impl<'a, T, I> nom::Parser<I> for VersionParser<'a, T> {
-//     type Error = todo!();
-//     type Output = crate::Version<T>;
+impl<T, I> nom::Parser<I> for VersionParser<T> {
+    type Error = nom::error::Error<I>;
+    type Output = Version<T>;
 
-//     fn process<OM: nom::OutputMode>(
-//         &mut self,
-//         input: I,
-//       ) -> nom::PResult<OM, I, Self::Output, Self::Error>
-//     {
-//         todo!("Implement the complete parser")
-//     }
-
-// }
+    fn process<OM: nom::OutputMode>(
+        &mut self,
+        _input: I,
+    ) -> nom::PResult<OM, I, Self::Output, Self::Error> {
+        todo!("Implement the complete parser")
+    }
+}

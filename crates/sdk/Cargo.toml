@@ -28,7 +28,7 @@ serde_derive = { optional = true, workspace = true }
 serde_json = { optional = true, workspace = true }
 # macros & utilities
 strum = { workspace = true }
-thiserror = { version = "2" }
+thiserror = { workspace = true }
 
 [dev-dependencies]
 criterion = { features = ["plotters"], workspace = true }
